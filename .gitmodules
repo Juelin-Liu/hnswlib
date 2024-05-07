@@ -1,0 +1,12 @@
+[submodule "third_party/argparse"]
+	path = third_party/argparse
+	url = https://github.com/p-ranav/argparse.git
+[submodule "third_party/spdlog"]
+	path = third_party/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "third_party/cnpy"]
+	path = third_party/cnpy
+	url = https://github.com/Juelin-Liu/cnpy
+[submodule "third_party/oneTBB"]
+	path = third_party/oneTBB
+	url = https://github.com/oneapi-src/oneTBB.git
