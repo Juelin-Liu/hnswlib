@@ -12,16 +12,18 @@ namespace ann {
       arr[8] + arr[9] + arr[10] + arr[11] + arr[12] + arr[13] + arr[14] +      \
       arr[15]
 
+#define _mm256_abs_ps(a) _mm256_andnot_ps(_mm256_set1_ps(-0.0f), a)
+
 namespace impl {
 
 template <typename dist_t, typename data_t, int K>
-inline dist_t L2DistanceResidual(const data_t *pVect1, const data_t *pVect2,
+inline dist_t L1DistanceResidual(const data_t *pVect1, const data_t *pVect2,
                                  int dim) {
   dist_t dist{0};
 #pragma unroll(K)
   for (int i = 0; i < dim; i += 1) {
     const dist_t diff = pVect1[i] - pVect2[i];
-    dist += diff * diff;
+    dist += std::abs(diff);
   }
 
   return dist;
@@ -29,7 +31,7 @@ inline dist_t L2DistanceResidual(const data_t *pVect1, const data_t *pVect2,
 
 // K is the unroll factor
 template <typename dist_t, typename data_t, int K>
-inline float L2DistanceMain(const float *pVect1, const float *pVect2, int dim) {
+inline float L1DistanceMain(const float *pVect1, const float *pVect2, int dim) {
 
   static_assert(std::is_same<dist_t, float>::value,
                 "Argument dist_t must be of type float");
@@ -47,7 +49,7 @@ inline float L2DistanceMain(const float *pVect1, const float *pVect2, int dim) {
     for (int i = 0; i < bound; i += step) {
       const __m512 diff = _mm512_sub_ps(_mm512_loadu_ps(pVect1 + i),
                                         _mm512_loadu_ps(pVect2 + i));
-      temp = _mm512_add_ps(temp, _mm512_mul_ps(diff, diff));
+      temp = _mm512_add_ps(temp, _mm512_abs_ps(diff));
     }
     _mm512_store_ps(TmpRes, temp);
     return Sum16(TmpRes);
@@ -61,9 +63,9 @@ inline float L2DistanceMain(const float *pVect1, const float *pVect2, int dim) {
 
 #pragma unroll(K / step)
     for (int i = 0; i < bound; i += step) {
-      const __m256 diff = _mm256_sub_ps(_mm256_loadu_ps(pVect1 + i),
+      const auto diff = _mm256_sub_ps(_mm256_loadu_ps(pVect1 + i),
                                         _mm256_loadu_ps(pVect2 + i));
-      temp = _mm256_add_ps(temp, _mm256_mul_ps(diff, diff));
+      temp = _mm256_add_ps(temp, _mm256_abs_ps(diff));
     }
     _mm256_store_ps(TmpRes, temp);
     return Sum8(TmpRes);
@@ -74,7 +76,7 @@ inline float L2DistanceMain(const float *pVect1, const float *pVect2, int dim) {
 #pragma unroll(K)
     for (int i = 0; i < dim; i += 1) {
       const dist_t diff = pVect1[i] - pVect2[i];
-      dist += diff * diff;
+      dist += std::abs(diff);
     }
 
     return dist;
@@ -84,7 +86,7 @@ inline float L2DistanceMain(const float *pVect1, const float *pVect2, int dim) {
 
 // K is the unroll factor
 template <typename dist_t, typename data_t, int K>
-inline float L2DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
+inline float L1DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
                             int dim) {
   static_assert(std::is_same<dist_t, float>::value,
                 "Argument dist_t must be of type float");
@@ -102,7 +104,7 @@ inline float L2DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
       const __m512 diff =
           _mm512_sub_ps(_mm512_cvtph_ps(_mm256_loadu_si256(pVect1 + i)),
                         _mm512_cvtph_ps(_mm256_loadu_si256(pVect2 + i)));
-      temp = _mm512_add_ps(temp, _mm512_mul_ps(diff, diff));
+      temp = _mm512_add_ps(temp, _mm512_abs_ps(diff));
     }
     _mm512_store_ps(TmpRes, temp);
     return Sum16(TmpRes);
@@ -116,10 +118,10 @@ inline float L2DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
 
 #pragma unroll(K / step)
     for (int i = 0; i < bound; i += step) {
-      const __m256 diff = _mm256_sub_ps(
+      const auto diff = _mm256_sub_ps(
           _mm256_cvtph_ps(_mm_loadu_si128((__m128i_u *)(pVect1 + i))),
           _mm256_cvtph_ps(_mm_loadu_si128((__m128i_u *)(pVect2 + i))));
-      temp = _mm256_add_ps(temp, _mm256_mul_ps(diff, diff));
+      temp = _mm256_add_ps(temp, _mm256_abs_ps(diff));
     }
     _mm256_store_ps(TmpRes, temp);
     return Sum8(TmpRes);
@@ -130,7 +132,7 @@ inline float L2DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
 #pragma unroll(K)
     for (int i = 0; i < dim; i += 1) {
       const dist_t diff = pVect1[i] - pVect2[i];
-      res += diff * diff;
+      res += std::abs(diff);
     }
     return res;
   }
@@ -139,7 +141,7 @@ inline float L2DistanceMain(const _Float16 *pVect1, const _Float16 *pVect2,
 
 // K is the unroll factor
 template <typename dist_t, typename data_t, int K>
-inline int L2DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
+inline int L1DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
                           int dim) {
   static_assert(std::is_same<dist_t, int>::value,
                 "Argument dist_t must be of type int");
@@ -158,12 +160,11 @@ inline int L2DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
           _mm512_cvtepu8_epi16(_mm256_loadu_si256((__m256i_u *)(pVect1 + i)));
       const auto b_casted =
           _mm512_cvtepu8_epi16(_mm256_loadu_si256((__m256i_u *)(pVect2 + i)));
-      const auto diff = _mm512_sub_epi16(a_casted, b_casted);
-      const auto diff_sq = _mm512_mullo_epi16(diff, diff);
+      const auto diff = _mm512_abs_epi16(_mm512_sub_epi16(a_casted, b_casted));
       temp = _mm512_add_epi32(
-          temp, _mm512_cvtepu16_epi32(_mm512_castsi512_si256(diff_sq)));
+          temp, _mm512_cvtepi16_epi32(_mm512_castsi512_si256(diff)));
       temp = _mm512_add_epi32(
-          temp, _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(diff_sq, 1)));
+          temp, _mm512_cvtepi16_epi32(_mm512_extracti64x4_epi64(diff, 1)));
     }
     _mm512_store_si512((__m512i *)TmpRes, temp);
     return Sum16(TmpRes);
@@ -177,19 +178,15 @@ inline int L2DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
 
 #pragma unroll(K / step)
     for (int i = 0; i < bound; i += step) {
-      const auto a_casted = _mm256_cvtepu8_epi16(_mm_loadu_si128(
-          (__m128i_u *)(pVect1 +
-                        i))); // load 16 8-bit ints, unpack them two 16-bit int
+      const auto a_casted =
+          _mm256_cvtepu8_epi16(_mm_loadu_si128((__m128i_u *)(pVect1 + i)));
       const auto b_casted =
           _mm256_cvtepu8_epi16(_mm_loadu_si128((__m128i_u *)(pVect2 + i)));
-      const auto diff = _mm256_sub_epi16(
-          a_casted, b_casted); // perform subtraction using 16 bit ints
-      const auto diff_sq = _mm256_mullo_epi16(
-          diff, diff); // perform multiplication using 16 bit ints
+      const auto diff = _mm256_abs_epi16(_mm256_sub_epi16(a_casted, b_casted));
       temp = _mm256_add_epi32(
-          temp, _mm256_cvtepu16_epi32(_mm256_castsi256_si128(diff_sq)));
+          temp, _mm256_cvtepi16_epi32(_mm256_castsi256_si128(diff)));
       temp = _mm256_add_epi32(
-          temp, _mm256_cvtepu16_epi32(_mm256_extracti128_si256(diff_sq, 1)));
+          temp, _mm256_cvtepi16_epi32(_mm256_extracti128_si256(diff, 1)));
     }
     _mm256_store_si256((__m256i *)TmpRes, temp);
     return Sum8(TmpRes);
@@ -200,7 +197,7 @@ inline int L2DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
 #pragma unroll(K)
     for (int i = 0; i < dim; i += 1) {
       const dist_t diff = pVect1[i] - pVect2[i];
-      dist += diff * diff;
+      dist += std::abs(diff);
     }
 
     return dist;
@@ -209,25 +206,25 @@ inline int L2DistanceMain(const uint8_t *pVect1, const uint8_t *pVect2,
 }
 template <typename dist_t, typename data_t, int scale,
           int dimension = INT32_MAX>
-inline dist_t L2DistanceUnroll(const data_t *pVect1, const data_t *pVect2,
+inline dist_t L1DistanceUnroll(const data_t *pVect1, const data_t *pVect2,
                                int dim) {
   if (dimension == INT32_MAX) {
     int residual = dim % scale;
     if (residual == 0) {
-      return L2DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim);
+      return L1DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim);
     } else {
-      return L2DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim - residual) +
-             L2DistanceResidual<dist_t, data_t, 1>(
+      return L1DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim - residual) +
+             L1DistanceResidual<dist_t, data_t, 1>(
                  pVect1 + dim - residual, pVect2 + dim - residual, residual);
     }
   } else {
     constexpr int unroll = dimension - dimension % scale;
     constexpr int residual = dimension % scale;
     if (residual == 0) {
-      return L2DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, unroll);
+      return L1DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, unroll);
     } else {
-      return L2DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, unroll) +
-             L2DistanceResidual<dist_t, data_t, residual>(
+      return L1DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, unroll) +
+             L1DistanceResidual<dist_t, data_t, residual>(
                  pVect1 + unroll, pVect2 + unroll, residual);
     }
   }
@@ -248,7 +245,7 @@ inline dist_t L2DistanceUnroll(const data_t *pVect1, const data_t *pVect2,
  * @return dist_t
  */
 template <typename dist_t, typename data_t, typename cast_t>
-inline dist_t L2Distance(const data_t *pVect1, const data_t *pVect2, int dim) {
+inline dist_t L1Distance(const data_t *pVect1, const data_t *pVect2, int dim) {
 #ifdef __AVX512F__
   constexpr int scale = 512 / sizeof(cast_t) / 8;
 #elif __AVX__
@@ -260,49 +257,49 @@ inline dist_t L2Distance(const data_t *pVect1, const data_t *pVect2, int dim) {
   // optimize for specific dimension
   switch (dim) {
   case 200:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 200>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 200>(pVect1, pVect2,
                                                               dim);
   case 128:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 128>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 128>(pVect1, pVect2,
                                                               dim);
   case 100:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 100>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 100>(pVect1, pVect2,
                                                               dim);
   case 96:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
                                                              dim);
   case 64:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
                                                              dim);
   case 32:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
                                                              dim);
   case 16:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 16>(pVect1, pVect2,
+    return impl::L1DistanceUnroll<dist_t, data_t, scale, 16>(pVect1, pVect2,
                                                              dim);
   default:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale>(pVect1, pVect2, dim);
+    return impl::L1DistanceUnroll<dist_t, data_t, scale>(pVect1, pVect2, dim);
     ;
   }
 };
 
-float L2Distance(const float *pVect1, const float *pVect2, int dim) {
-  return L2Distance<float, float, float>(pVect1, pVect2, dim);
+float L1Distance(const float *pVect1, const float *pVect2, int dim) {
+  return L1Distance<float, float, float>(pVect1, pVect2, dim);
 };
 
-float L2Distance(const _Float16 *pVect1, const _Float16 *pVect2, int dim) {
-  return L2Distance<float, _Float16, float>(pVect1, pVect2, dim);
+float L1Distance(const _Float16 *pVect1, const _Float16 *pVect2, int dim) {
+  return L1Distance<float, _Float16, float>(pVect1, pVect2, dim);
 };
 
-int L2Distance(const uint8_t *pVect1, const uint8_t *pVect2, int dim) {
-  return L2Distance<int, uint8_t, int16_t>(pVect1, pVect2, dim);
+int L1Distance(const uint8_t *pVect1, const uint8_t *pVect2, int dim) {
+  return L1Distance<int, uint8_t, int16_t>(pVect1, pVect2, dim);
 };
 
-// float L2Distance(const E5M2 *pVect1,
+// float L1Distance(const E5M2 *pVect1,
 //                    const E5M2 *pVect2,
 //                    int dim);
 
-// float L2Distance(const E4M3 *pVect1,
+// float L1Distance(const E4M3 *pVect1,
 //                    const E4M3 *pVect2,
 //                    int dim);
 } // namespace ann

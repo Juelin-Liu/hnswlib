@@ -7,7 +7,7 @@
 #include <vector>
 
 template <typename dist_t, typename data_t, int K = 1>
-inline dist_t InnerProductGroundTruth(const data_t *pVect1,
+inline dist_t L2DistanceGroundTruth(const data_t *pVect1,
                                       const data_t *pVect2,
                                       int dim)
 {
@@ -95,8 +95,8 @@ int main(int argc, char const *argv[])
   std::cout << "vec2: " << print(vec2) << std::endl;
   std::cout << "diff: " << print_l2(vec1, vec2) << std::endl;
 
-  auto dist = InnerProductGroundTruth<int, uint8_t, 1>(vec1.data(), vec2.data(), vec1.size());
-  auto pred = ann::InnerProduct(vec1.data(), vec2.data(), vec1.size());
+  auto dist = L2DistanceGroundTruth<int, uint8_t, 1>(vec1.data(), vec2.data(), vec1.size());
+  auto pred = ann::L2Distance(vec1.data(), vec2.data(), vec1.size());
   auto delta = dist - pred;
   std::cout << "dist: " << (double)dist << std::endl;
   std::cout << "pred: " << (double)pred << std::endl;
