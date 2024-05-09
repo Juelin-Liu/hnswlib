@@ -1,15 +1,13 @@
-#include "test_util.hpp"
 #include "space_l1.hpp"
+#include "test_util.hpp"
 
 TEST(L1Distance, Float32) {
-  int arr_len = 128;
-
-  auto [vec1, vec2] = generateRandomVectors<float>(arr_len, -1024, 1024);
+  auto [vec1, vec2] = generateRandomVectors<float>(ArraySize, -1024, 1024);
   auto dist = L1DistanceGroundTruth<float, float>(vec1.data(), vec2.data(),
                                                   vec1.size());
   auto pred = ann::L1Distance(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;
@@ -23,14 +21,12 @@ TEST(L1Distance, Float32) {
 }
 
 TEST(L1Distance, Float16) {
-  int arr_len = 128;
-
-  auto [vec1, vec2] = generateRandomVectors<_Float16>(arr_len, -1024, 1024);
-  auto dist = L1DistanceGroundTruth<float, _Float16>(vec1.data(), vec2.data(),
+  auto [vec1, vec2] = generateRandomVectors<float16>(ArraySize, -1024, 1024);
+  auto dist = L1DistanceGroundTruth<float, float16>(vec1.data(), vec2.data(),
                                                      vec1.size());
   auto pred = ann::L1Distance(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;
@@ -44,14 +40,12 @@ TEST(L1Distance, Float16) {
 }
 
 TEST(L1Distance, UInt8) {
-  int arr_len = 128;
-
-  auto [vec1, vec2] = generateRandomVectors<uint8_t>(arr_len, -1024, 1024);
+  auto [vec1, vec2] = generateRandomVectors<uint8_t>(ArraySize, -1024, 1024);
   auto dist = L1DistanceGroundTruth<int, uint8_t>(vec1.data(), vec2.data(),
                                                   vec1.size());
   auto pred = ann::L1Distance(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;

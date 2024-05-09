@@ -1,12 +1,11 @@
 #pragma once
-#include <cstdint>
-#include <float8.hpp>
+#include "util.hpp"
 
 namespace ann {
 
 float InnerProduct(const float *pVect1, const float *pVect2, int dim);
 
-float InnerProduct(const _Float16 *pVect1, const _Float16 *pVect2, int dim);
+float InnerProduct(const float16 *pVect1, const float16 *pVect2, int dim);
 
 int InnerProduct(const uint8_t *pVect1, const uint8_t *pVect2, int dim);
 

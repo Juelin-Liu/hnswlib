@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.0...3.26)
 project(hnswlib LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
 set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=mold")
 
+add_subdirectory(third_party/mdspan)
 add_subdirectory(cpp)
 
 # include(GNUInstallDirs)

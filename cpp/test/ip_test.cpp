@@ -1,15 +1,13 @@
-#include "test_util.hpp"
 #include "space_ip.hpp"
+#include "test_util.hpp"
 
 TEST(InnerProduct, Float32) {
-  int arr_len = 128;
-
-  auto [vec1, vec2] = generateRandomVectors<float>(arr_len, -1024, 1024);
+  auto [vec1, vec2] = generateRandomVectors<float>(ArraySize, -1024, 1024);
   auto dist = InnerProductGroundTruth<float, float>(vec1.data(), vec2.data(),
-                                                  vec1.size());
+                                                    vec1.size());
   auto pred = ann::InnerProduct(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;
@@ -23,14 +21,13 @@ TEST(InnerProduct, Float32) {
 }
 
 TEST(InnerProduct, Float16) {
-  int arr_len = 128;
 
-  auto [vec1, vec2] = generateRandomVectors<_Float16>(arr_len, -1024, 1024);
-  auto dist = InnerProductGroundTruth<float, _Float16>(vec1.data(), vec2.data(),
-                                                     vec1.size());
+  auto [vec1, vec2] = generateRandomVectors<float16>(ArraySize, -1024, 1024);
+  auto dist = InnerProductGroundTruth<float, float16>(vec1.data(), vec2.data(),
+                                                       vec1.size());
   auto pred = ann::InnerProduct(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;
@@ -44,14 +41,13 @@ TEST(InnerProduct, Float16) {
 }
 
 TEST(InnerProduct, UInt8) {
-  int arr_len = 128;
 
-  auto [vec1, vec2] = generateRandomVectors<uint8_t>(arr_len, -1024, 1024);
+  auto [vec1, vec2] = generateRandomVectors<uint8_t>(ArraySize, -1024, 1024);
   auto dist = InnerProductGroundTruth<int, uint8_t>(vec1.data(), vec2.data(),
-                                                  vec1.size());
+                                                    vec1.size());
   auto pred = ann::InnerProduct(vec1.data(), vec2.data(), vec1.size());
   auto delta = std::abs(dist - pred);
-  auto eps = std::abs(pred * 1e-5); // allow 0.01% diviation
+  auto eps = std::abs(dist * 1e-5); // allow 0.01% diviation
   EXPECT_LT(delta, eps);
   if (delta > eps) {
     std::cout << "vec1: " << print(vec1) << std::endl;
