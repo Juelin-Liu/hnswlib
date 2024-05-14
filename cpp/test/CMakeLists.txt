@@ -1,5 +1,6 @@
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
-# add_executable(dtest l2_test.cpp ip_test.cpp l1_test.cpp)
 add_executable(dtest distance_test.cpp)
+add_executable(nndtest nnd_test.cpp)
 target_link_libraries(dtest PRIVATE GTest::gtest_main annlib)
+target_link_libraries(nndtest PRIVATE GTest::gtest_main annlib)

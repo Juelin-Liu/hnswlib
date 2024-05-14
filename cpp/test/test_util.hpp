@@ -68,7 +68,7 @@ generateRandomVectors(size_t arr_len, float min, float max) {
       vec2[i] = (data_t)dis(gen);
     }
   } else {
-        auto dis = std::uniform_int_distribution<int>{(int)min, (int)max};
+    auto dis = std::uniform_int_distribution<int>{(int)min, (int)max};
 
     for (int i = 0; i < arr_len; ++i) {
       vec1[i] = (data_t)dis(gen);
@@ -79,6 +79,29 @@ generateRandomVectors(size_t arr_len, float min, float max) {
   std::span<data_t> r1 = std::span(vec1, arr_len);
   std::span<data_t> r2 = std::span(vec2, arr_len);
   return std::make_pair(r1, r2);
+};
+
+template <typename data_t>
+std::span<data_t> generateRandomVector(size_t arr_len, float min, float max) {
+  // Seed the random number generator (optional for better randomness)
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  // Allocate aligned memory for vectors
+  data_t *vec1 = (data_t *)std::aligned_alloc(64, arr_len * sizeof(data_t));
+
+  if (std::is_floating_point_v<data_t>) {
+    auto dis = std::uniform_real_distribution<float>{min, max};
+    for (int i = 0; i < arr_len; ++i) {
+      vec1[i] = (data_t)dis(gen);
+    }
+  } else {
+    auto dis = std::uniform_int_distribution<int>{(int)min, (int)max};
+
+    for (int i = 0; i < arr_len; ++i) {
+      vec1[i] = (data_t)dis(gen);
+    }
+  }
+  return std::span(vec1, arr_len);
 };
 
 template <typename T> std::string print(std::span<T> vec) {

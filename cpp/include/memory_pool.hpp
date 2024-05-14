@@ -8,11 +8,13 @@ public:
   MemoryPool() = default;
   ~MemoryPool();
   void *malloc(uint64_t num_bytes, uint64_t alignment = 64);
-  void *cached_malloc(uint64_t num_bytes, uint64_t alignment = 64);
   void free(void *ptr);
+  void *cached_malloc(uint64_t num_bytes, uint64_t alignment = 64);
   void release(void *ptr);
-  static MemoryPool &Global(); // get thread local memory pool
-
+  static MemoryPool &Global() {
+    static thread_local MemoryPool mem_pool{};
+    return mem_pool;
+  }; // get thread local memory pool
   int64_t total_bytes() { return num_bytes; };
   int64_t total_calls() { return num_calls; };
 

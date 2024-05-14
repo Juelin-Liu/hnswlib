@@ -66,8 +66,4 @@ void MemoryPool::release(void *container) {
   allocated_ptrs.erase(alloc_itr);
 };
 
-static MemoryPool &Global() {
-  static thread_local MemoryPool mem_pool{};
-  return mem_pool;
-}; // get thread local memory pool
 } // namespace ann

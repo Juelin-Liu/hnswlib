@@ -10,6 +10,6 @@ file(GLOB_RECURSE LIB_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "src/*.cpp")
 
 add_library(annlib STATIC ${LIB_FILES})
 
-target_link_libraries(annlib TBB::tbbmalloc)
+target_link_libraries(annlib PUBLIC TBB::tbbmalloc TBB::tbb)
 
 add_subdirectory(test)

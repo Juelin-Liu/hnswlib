@@ -1,8 +1,6 @@
 #include "graph.hpp"
-
 namespace ann
 {
-
     // template instantiation for NSWGraph
     template class NSWGraph<int32_t>; 
     template class NSWGraph<int64_t>; 

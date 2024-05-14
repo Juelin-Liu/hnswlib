@@ -1,7 +1,7 @@
 #include "space_l2.hpp"
 #include <cpuid.h>
 #include <immintrin.h>
-#include <numeric>
+#include <type_traits>
 
 namespace ann {
 #define Sum8(arr)                                                              \
@@ -11,16 +11,17 @@ namespace ann {
   arr[0] + arr[1] + arr[2] + arr[3] + arr[4] + arr[5] + arr[6] + arr[7] +      \
       arr[8] + arr[9] + arr[10] + arr[11] + arr[12] + arr[13] + arr[14] +      \
       arr[15]
-
 namespace impl {
 
-template <typename dist_t, typename data_t, int K>
+template <typename dist_t, typename data_t, int scale,
+          int dimension = INT32_MAX>
 __force_inline__ dist_t L2DistanceResidual(const data_t *pVect1,
                                            const data_t *pVect2, int dim) {
   dist_t dist{0};
 
-#pragma unroll(K)
-  for (int i = 0; i < dim; i += 1) {
+#pragma unroll
+  for (int i = get_main<scale, dimension>(dim);
+       i < get_all<scale, dimension>(dim); i += 1) {
     const dist_t diff = pVect1[i] - pVect2[i];
     dist += diff * diff;
   }
@@ -29,9 +30,9 @@ __force_inline__ dist_t L2DistanceResidual(const data_t *pVect1,
 }
 
 // K is the unroll factor
-template <typename dist_t, typename data_t, int K>
-__force_inline__ float L2DistanceMain(const float *pVect1, const float *pVect2,
-                                      int dim) {
+template <typename dist_t, typename data_t, int dimension = INT32_MAX>
+__force_inline__ float L2Distance(const float *pVect1, const float *pVect2,
+                                  int dim) {
 
   static_assert(std::is_same<dist_t, float>::value,
                 "Argument dist_t must be of type float");
@@ -41,53 +42,52 @@ __force_inline__ float L2DistanceMain(const float *pVect1, const float *pVect2,
 #ifdef __AVX512F__
   {
     __m512 temp = _mm512_set1_ps(0);
-    constexpr int step = sizeof(temp) / sizeof(float);
-    int bound = dim - dim % step;
-    float __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(float);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    float __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const __m512 diff = _mm512_sub_ps(_mm512_loadu_ps(pVect1 + i),
                                         _mm512_loadu_ps(pVect2 + i));
       temp = _mm512_add_ps(temp, _mm512_mul_ps(diff, diff));
     }
     _mm512_store_ps(TmpRes, temp);
-    return Sum16(TmpRes);
+    return Sum16(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                               pVect1, pVect2, dim);
+    ;
   }
 #elif __AVX__
   {
     __m256 temp = _mm256_set1_ps(0);
-    constexpr int step = sizeof(temp) / sizeof(float);
-    int bound = dim - dim % step;
-    float __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(float);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    float __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const __m256 diff = _mm256_sub_ps(_mm256_loadu_ps(pVect1 + i),
                                         _mm256_loadu_ps(pVect2 + i));
       temp = _mm256_add_ps(temp, _mm256_mul_ps(diff, diff));
     }
     _mm256_store_ps(TmpRes, temp);
-    return Sum8(TmpRes);
+    return Sum8(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                              pVect1, pVect2, dim);
+    ;
   }
 #else
   {
-    dist_t dist{0};
-#pragma unroll(K)
-    for (int i = 0; i < dim; i += 1) {
-      const dist_t diff = pVect1[i] - pVect2[i];
-      dist += diff * diff;
-    }
-
-    return dist;
+    constexpr int scale = 1;
+    return L2DistanceResidual<dist_t, data_t, scale, dimension>(pVect1, pVect2,
+                                                                dim);
   }
 #endif
 }
 
 // K is the unroll factor
-template <typename dist_t, typename data_t, int K>
-__force_inline__ float L2DistanceMain(const float16 *pVect1,
-                                      const float16 *pVect2, int dim) {
+template <typename dist_t, typename data_t, int dimension = INT32_MAX>
+__force_inline__ float L2Distance(const float16 *pVect1, const float16 *pVect2,
+                                  int dim) {
   static_assert(std::is_same<dist_t, float>::value,
                 "Argument dist_t must be of type float");
   static_assert(std::is_same<data_t, float16>::value,
@@ -95,54 +95,54 @@ __force_inline__ float L2DistanceMain(const float16 *pVect1,
 #ifdef __AVX512F__
   {
     __m512 temp = _mm512_set1_ps(0);
-    constexpr int step = sizeof(temp) / sizeof(float);
-    int bound = dim - dim % step;
-    float __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(float);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    float __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const __m512 diff =
           _mm512_sub_ps(_mm512_cvtph_ps(_mm256_loadu_si256(pVect1 + i)),
                         _mm512_cvtph_ps(_mm256_loadu_si256(pVect2 + i)));
       temp = _mm512_add_ps(temp, _mm512_mul_ps(diff, diff));
     }
     _mm512_store_ps(TmpRes, temp);
-    return Sum16(TmpRes);
+    return Sum16(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                               pVect1, pVect2, dim);
+    ;
   }
 #elif __AVX__ && __F16C__
   {
     __m256 temp = _mm256_set1_ps(0);
-    constexpr int step = sizeof(temp) / sizeof(float);
-    int bound = dim - dim % step;
-    float __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(float);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    float __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const __m256 diff = _mm256_sub_ps(
           _mm256_cvtph_ps(_mm_loadu_si128((__m128i_u *)(pVect1 + i))),
           _mm256_cvtph_ps(_mm_loadu_si128((__m128i_u *)(pVect2 + i))));
       temp = _mm256_add_ps(temp, _mm256_mul_ps(diff, diff));
     }
     _mm256_store_ps(TmpRes, temp);
-    return Sum8(TmpRes);
+    return Sum8(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                              pVect1, pVect2, dim);
+    ;
   }
 #else
   {
-    float res{0};
-#pragma unroll(K)
-    for (int i = 0; i < dim; i += 1) {
-      const dist_t diff = pVect1[i] - pVect2[i];
-      res += diff * diff;
-    }
-    return res;
+    constexpr int scale = 1;
+    return L2DistanceResidual<dist_t, data_t, scale, dimension>(pVect1, pVect2,
+                                                                dim);
   }
 #endif
 }
 
 // K is the unroll factor
-template <typename dist_t, typename data_t, int K>
-__force_inline__ int L2DistanceMain(const uint8_t *pVect1,
-                                    const uint8_t *pVect2, int dim) {
+template <typename dist_t, typename data_t, int dimension = INT32_MAX>
+__force_inline__ int L2Distance(const uint8_t *pVect1, const uint8_t *pVect2,
+                                int dim) {
   static_assert(std::is_same<dist_t, int>::value,
                 "Argument dist_t must be of type int");
   static_assert(std::is_same<data_t, uint8_t>::value,
@@ -150,12 +150,12 @@ __force_inline__ int L2DistanceMain(const uint8_t *pVect1,
 #ifdef __AVX512F__
   {
     __m512i temp = _mm512_set1_epi32(0);
-    constexpr int step = sizeof(temp) / sizeof(int16_t);
-    int bound = dim - dim % step;
-    int __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(int16_t);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    int __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const auto a_casted =
           _mm512_cvtepu8_epi16(_mm256_loadu_si256((__m256i_u *)(pVect1 + i)));
       const auto b_casted =
@@ -168,17 +168,19 @@ __force_inline__ int L2DistanceMain(const uint8_t *pVect1,
           temp, _mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(diff_sq, 1)));
     }
     _mm512_store_si512((__m512i *)TmpRes, temp);
-    return Sum16(TmpRes);
+    return Sum16(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                               pVect1, pVect2, dim);
+    ;
   }
 #elif __AVX__
   {
     __m256i temp = _mm256_set1_epi32(0);
-    constexpr int step = sizeof(temp) / sizeof(int16_t);
-    int bound = dim - dim % step;
-    int __attribute__((aligned(sizeof(temp)))) TmpRes[step];
+    constexpr int scale = sizeof(temp) / sizeof(int16_t);
 
-#pragma unroll(K)
-    for (int i = 0; i < bound; i += step) {
+    int __attribute__((aligned(sizeof(temp)))) TmpRes[scale];
+
+#pragma unroll
+    for (int i = 0; i < get_main<scale, dimension>(dim); i += scale) {
       const auto a_casted = _mm256_cvtepu8_epi16(_mm_loadu_si128(
           (__m128i_u *)(pVect1 +
                         i))); // load 16 8-bit ints, unpack them two 16-bit int
@@ -194,46 +196,18 @@ __force_inline__ int L2DistanceMain(const uint8_t *pVect1,
           temp, _mm256_cvtepu16_epi32(_mm256_extracti128_si256(diff_sq, 1)));
     }
     _mm256_store_si256((__m256i *)TmpRes, temp);
-    return Sum8(TmpRes);
+    return Sum8(TmpRes) + L2DistanceResidual<dist_t, data_t, scale, dimension>(
+                              pVect1, pVect2, dim);
+    ;
   }
 #else
   {
-    dist_t dist{0};
-#pragma unroll(K)
-    for (int i = 0; i < dim; i += 1) {
-      const dist_t diff = pVect1[i] - pVect2[i];
-      dist += diff * diff;
-    }
-
-    return dist;
+    constexpr int scale = 1;
+    return L2DistanceResidual<dist_t, data_t, scale, dimension>(pVect1, pVect2,
+                                                                dim);
   }
 #endif
 }
-template <typename dist_t, typename data_t, int scale,
-          int dimension = INT32_MAX>
-__force_inline__ dist_t L2DistanceUnroll(const data_t *pVect1,
-                                         const data_t *pVect2, int dim) {
-  if (dimension == INT32_MAX) {
-    int residual = dim % scale;
-    if (residual == 0) {
-      return L2DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim);
-    } else {
-      return L2DistanceMain<dist_t, data_t, 1>(pVect1, pVect2, dim - residual) +
-             L2DistanceResidual<dist_t, data_t, 1>(
-                 pVect1 + dim - residual, pVect2 + dim - residual, residual);
-    }
-  } else {
-    constexpr int unroll = (dimension - dimension % scale) / scale;
-    constexpr int residual = dimension % scale;
-    if constexpr(residual == 0) {
-      return L2DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, dim);
-    } else {
-      return L2DistanceMain<dist_t, data_t, unroll>(pVect1, pVect2, dim) +
-             L2DistanceResidual<dist_t, data_t, residual>(
-                 pVect1 + unroll, pVect2 + unroll, residual);
-    }
-  }
-};
 } // namespace impl
 
 // data_t will be cast to cast_t in register to conduct the computation by
@@ -252,39 +226,24 @@ __force_inline__ dist_t L2DistanceUnroll(const data_t *pVect1,
 template <typename dist_t, typename data_t, typename cast_t>
 __force_inline__ dist_t L2Distance(const data_t *pVect1, const data_t *pVect2,
                                    int dim) {
-#ifdef __AVX512F__
-  constexpr int scale = 512 / sizeof(cast_t) / 8;
-#elif __AVX__
-  constexpr int scale = 256 / sizeof(cast_t) / 8;
-#else
-  constexpr int scale = 1;
-#endif
-
   // optimize for specific dimension
   switch (dim) {
   case 200:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 200>(pVect1, pVect2,
-                                                              dim);
+    return impl::L2Distance<dist_t, data_t, 200>(pVect1, pVect2, dim);
   case 128:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 128>(pVect1, pVect2,
-                                                              dim);
+    return impl::L2Distance<dist_t, data_t, 128>(pVect1, pVect2, dim);
   case 100:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 100>(pVect1, pVect2,
-                                                              dim);
+    return impl::L2Distance<dist_t, data_t, 100>(pVect1, pVect2, dim);
   case 96:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
-                                                             dim);
+    return impl::L2Distance<dist_t, data_t, 96>(pVect1, pVect2, dim);
   case 64:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
-                                                             dim);
+    return impl::L2Distance<dist_t, data_t, 96>(pVect1, pVect2, dim);
   case 32:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 96>(pVect1, pVect2,
-                                                             dim);
+    return impl::L2Distance<dist_t, data_t, 96>(pVect1, pVect2, dim);
   case 16:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale, 16>(pVect1, pVect2,
-                                                             dim);
+    return impl::L2Distance<dist_t, data_t, 16>(pVect1, pVect2, dim);
   default:
-    return impl::L2DistanceUnroll<dist_t, data_t, scale>(pVect1, pVect2, dim);
+    return impl::L2Distance<dist_t, data_t>(pVect1, pVect2, dim);
     ;
   }
 };
