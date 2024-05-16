@@ -4,48 +4,45 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
-set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=mold")
-
-add_subdirectory(third_party/mdspan)
-add_subdirectory(cpp)
+# set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
+# set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=mold")
+# add_subdirectory(third_party/mdspan)
+# add_subdirectory(cpp)
 
 # include(GNUInstallDirs)
 # include(CheckCXXCompilerFlag)
 
-# add_library(hnswlib INTERFACE)
-# add_library(hnswlib::hnswlib ALIAS hnswlib)
+add_library(hnswlib INTERFACE)
+add_library(hnswlib::hnswlib ALIAS hnswlib)
 
-# target_include_directories(hnswlib INTERFACE
-#     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-#     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+target_include_directories(hnswlib INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-# # Install
-# install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/hnswlib
-#     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+# Install
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/hnswlib
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-# install(TARGETS hnswlib
-#     EXPORT hnswlibTargets)
+install(TARGETS hnswlib
+    EXPORT hnswlibTargets)
 
-# install(EXPORT hnswlibTargets
-#     FILE hnswlibConfig.cmake
-#     NAMESPACE hnswlib::
-#     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hnswlib)
+install(EXPORT hnswlibTargets
+    FILE hnswlibConfig.cmake
+    NAMESPACE hnswlib::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hnswlib)
 
-# set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=mold")
-# set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=mold")
-# find_package(TBB REQUIRED)
-# #add_subdirectory(third_party/oneTBB)
-# #include_directories(third_party/oneTBB/include)
+find_package(TBB REQUIRED)
+#add_subdirectory(third_party/oneTBB)
+#include_directories(third_party/oneTBB/include)
 
-# find_package(spdlog REQUIRED)
-# #add_subdirectory(third_party/spdlog)
-# #include_directories(third_party/spdlog/include)
+find_package(spdlog REQUIRED)
+#add_subdirectory(third_party/spdlog)
+#include_directories(third_party/spdlog/include)
 
-# add_subdirectory(third_party/cnpy)
-# include_directories(third_party/cnpy/include)
+add_subdirectory(third_party/cnpy)
+include_directories(third_party/cnpy/include)
 
-# add_subdirectory(profiler)
+add_subdirectory(profiler)
 
 # # Examples and tests
 # if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

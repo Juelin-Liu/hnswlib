@@ -10,7 +10,7 @@ public:
   void *malloc(uint64_t num_bytes, uint64_t alignment = 64);
   void free(void *ptr);
   void *cached_malloc(uint64_t num_bytes, uint64_t alignment = 64);
-  void release(void *ptr);
+  void cached_free(void *ptr);
   static MemoryPool &Global() {
     static thread_local MemoryPool mem_pool{};
     return mem_pool;

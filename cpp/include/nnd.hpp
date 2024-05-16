@@ -2,18 +2,18 @@
 #include "graph.hpp"
 #include "space.hpp"
 #include "util.hpp"
+#include "matrix2d.hpp"
 #include <cstdint>
 #include <oneapi/tbb/blocked_range.h>
 #include <oneapi/tbb/parallel_for.h>
 #include <priority_queue.hpp>
-#include <queue>
 #include <random>
 #include <tbb/parallel_for.h>
 
 namespace ann {
 
-template<typename id_t, typename data_t, DistanceType dist_type>
-FixedDegreeGraph<id_t> build_nnd(int num_iterations, int d_max,
+template< typename data_t, DistanceType dist_type>
+FixedDegreeGraph build_nnd(int num_iterations, int d_max,
                                  const Matrix2D<data_t> &data) {
   using namespace tbb;
   int64_t v_num = data.num_elem;
@@ -21,7 +21,7 @@ FixedDegreeGraph<id_t> build_nnd(int num_iterations, int d_max,
 
   auto DistFunc = get_distance<dist_type, data_t>;
 
-  FixedDegreeGraph<id_t> ret(d_max, v_num);
+  FixedDegreeGraph ret(d_max, v_num);
   parallel_for(blocked_range<int64_t>(0, v_num),
                [&](const blocked_range<int64_t> &r) {
                  for (int64_t i = r.begin(); i < r.end(); i++) {
@@ -38,7 +38,7 @@ FixedDegreeGraph<id_t> build_nnd(int num_iterations, int d_max,
                });
 
   for (int i = 0; i < num_iterations; i++) {
-    FixedDegreeGraph<id_t> tmp(d_max, v_num);
+    FixedDegreeGraph tmp(d_max, v_num);
     parallel_for(
         blocked_range<int64_t>(0, v_num), [&](const blocked_range<int64_t> &r) {
           for (int64_t vid = r.begin(); vid < r.end(); vid++) {

@@ -48,7 +48,7 @@ void *MemoryPool::cached_malloc(uint64_t num_bytes, uint64_t alignment) {
   }
 };
 
-void MemoryPool::release(void *container) {
+void MemoryPool::cached_free(void *container) {
   auto ptr_eq = [container](const Container &itr) {
     return itr.ptr == container;
   };

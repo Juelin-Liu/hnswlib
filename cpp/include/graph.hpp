@@ -4,12 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
-#include <iterator>
 #include <span>
 #include <vector>
 
 namespace ann {
-template <typename id_t> struct FixedDegreeGraph {
+struct FixedDegreeGraph {
   FixedDegreeGraph() = default;
   FixedDegreeGraph(int64_t _d_max, int64_t _v_num) {
     d_max = _d_max;
@@ -28,7 +27,7 @@ template <typename id_t> struct FixedDegreeGraph {
   std::span<const id_t> get_adj(id_t vid) const {
     return std::span(indices.begin() + vid * d_max, d_max);
   };
-  bool operator==(const FixedDegreeGraph<id_t> &other) const {
+  bool operator==(const FixedDegreeGraph &other) const {
     if (v_num != other.v_num)
       return false;
     if (d_max != other.d_max)
@@ -40,7 +39,7 @@ template <typename id_t> struct FixedDegreeGraph {
     return true;
   };
 
-  float recall( FixedDegreeGraph<id_t>& other)   {
+  float recall( FixedDegreeGraph& other)   {
     if (v_num != other.v_num)
       return 0;
     size_t deg = std::min(other.d_max, d_max);
@@ -57,7 +56,7 @@ template <typename id_t> struct FixedDegreeGraph {
   }
 
   friend std::ostream &operator<<(std::ostream &os,
-                                  FixedDegreeGraph<id_t> &graph) {
+                                  FixedDegreeGraph &graph) {
     os << "v_num = " << graph.v_num << " d_max = " << graph.d_max << "\n";
     os << "indices:\n";
     for (size_t i = 0; i < graph.v_num; i++) {
@@ -71,16 +70,17 @@ template <typename id_t> struct FixedDegreeGraph {
     return os;
   };
 };
-/**
+
+    /**
  * @brief
- * NSWGraph stores adjacency lists contiguously in an array
+ * StaticNSWGraph stores adjacency lists contiguously in an array
  * The first element in each adjacency list defines the degree of the adjacency
  * list The max size of the adj is defined by d_max
  *
  * @tparam id_t Data type for ids
  * @tparam id_t Data types for the indices
  */
-template <typename id_t = uint32_t> class NSWGraph {
+class NSWGraph {
 private:
   id_t d_max{0}; // max degree
   id_t v_num{0}; // number of vertices
@@ -89,17 +89,24 @@ private:
 public:
   NSWGraph() = default;
   NSWGraph(id_t v_num, id_t d_max) {
+    Init(v_num, d_max);
+  };
+
+  void Init(id_t v_num, id_t d_max) {
     this->v_num = v_num;
     this->d_max = d_max;
     size_t num_bytes = 1llu * sizeof(id_t) * v_num * (d_max + 1);
     indices = static_cast<id_t *>(MemoryPool::Global().malloc(num_bytes));
-  };
+  }
 
-  ~NSWGraph() {
+  void Clear() {
     v_num = 0;
     d_max = 0;
     if (indices)
       MemoryPool::Global().free(indices);
+  }
+  ~NSWGraph() {
+    Clear();
   };
 
   __force_inline__ id_t get_d_max() { return d_max; };
@@ -147,7 +154,7 @@ public:
  * @tparam id_t
  * @tparam id_t
  */
-template <typename id_t = uint32_t> class NNDGraph {
+class NNDGraph {
 private:
   id_t d_max{0}; // max degree
   id_t v_num{0}; // number of vertices
@@ -156,18 +163,26 @@ private:
 public:
   NNDGraph() = default;
   NNDGraph(id_t v_num, id_t d_max) {
+    Init(v_num, d_max);
+  };
+
+  ~NNDGraph() {
+    Clear();
+  };
+
+  void Init(id_t v_num, id_t d_max) {
     this->v_num = v_num;
     this->d_max = d_max;
     size_t num_bytes = 1llu * v_num * d_max * sizeof(id_t);
     indices = static_cast<id_t *>(MemoryPool::Global().malloc(num_bytes));
-  };
+  }
 
-  ~NNDGraph() {
+  void Clear() {
     v_num = 0;
     d_max = 0;
     if (indices)
       MemoryPool::Global().free(indices);
-  };
+  }
 
   __force_inline__ id_t get_d_max() { return d_max; };
   __force_inline__ id_t get_v_num() { return v_num; };

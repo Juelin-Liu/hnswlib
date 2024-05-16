@@ -10,16 +10,16 @@
 #include <oneapi/tbb/parallel_for.h>
 using namespace profiler;
 
-template<typename SpaceType>
+
+template<typename space_t, typename dist_t>
 void benchmark(HNSWConfig config){
-    typedef float FeatType;
-    typedef std::priority_queue<std::pair<FeatType, hnswlib::labeltype>> ResultType;
+    typedef std::priority_queue<std::pair<dist_t, hnswlib::labeltype>> ResultType;
 
     cnpy::NpyArray feat, query, truth;
     feat = cnpy::npy_load(config.feat_path);
     config.max_elements = feat.shape[0];
     config.dim = feat.shape[1];
-
+    
     if (config.query_path.empty() != config.truth_path.empty()){
         spdlog::error("query and ground truth should be both provided (or not provided)");
         exit(-1);
@@ -47,22 +47,22 @@ void benchmark(HNSWConfig config){
         }
     }
 
-    SpaceType space(config.dim);
-    hnswlib::HierarchicalNSW<FeatType> *alg_hnsw{nullptr};
+    space_t space(config.dim);
+    hnswlib::HierarchicalNSW<dist_t> *alg_hnsw{nullptr};
 
     Timer timer;
     timer.start();
 
     if (!config.index_path.empty())
     {
-        alg_hnsw = new hnswlib::HierarchicalNSW<FeatType>(&space, config.index_path);
+        alg_hnsw = new hnswlib::HierarchicalNSW<dist_t>(&space, config.index_path);
         config.max_elements = alg_hnsw->max_elements_;
         config.M = alg_hnsw->M_;
         config.ef_construction = alg_hnsw->ef_construction_;
     }
     else
     {
-        alg_hnsw = new hnswlib::HierarchicalNSW<FeatType>(&space,
+        alg_hnsw = new hnswlib::HierarchicalNSW<dist_t>(&space,
                                                           config.max_elements,
                                                           config.M,
                                                           config.ef_construction);
@@ -72,7 +72,7 @@ void benchmark(HNSWConfig config){
                                   {
                                       for (int64_t i = r.begin(); i < r.end(); i++)
                                       {
-                                          alg_hnsw->addPoint((void *)(feat.data<FeatType>() + config.dim * i), i);
+                                          alg_hnsw->addPoint((void *)(feat.data<dist_t>() + config.dim * i), i);
                                       }
                                   });
     }
@@ -97,7 +97,7 @@ void benchmark(HNSWConfig config){
                                   {
                                       for (int64_t i = r.begin(); i < r.end(); i++)
                                       {
-                                          results.at(i) = alg_hnsw->searchKnn(query.data<FeatType>() + i * config.dim, config.k);
+                                          results.at(i) = alg_hnsw->searchKnn(query.data<dist_t>() + i * config.dim, config.k);
                                       }
                                   });
         timer.end();
@@ -127,23 +127,35 @@ void benchmark(HNSWConfig config){
                                           }
                                       }
                                   });
-
         int64_t total_matched = std::accumulate(matched.begin(), matched.end(), 0ll);
         double recall = 1.0 * total_matched / (config.k * num_queries);
         spdlog::info("Recall={0:.2f}%", recall * 100);
 
-        long num_feat = alg_hnsw->metric_distance_computations;
-        long num_hops = alg_hnsw->metric_hops;
-        float memory = 1.0 * num_feat * config.dim * sizeof(FeatType) / 1e6;
-        spdlog::info("TotalHops={}", num_hops);
-        spdlog::info("TotalFeat={}", num_feat);
-        spdlog::info("TotalRead={0:.2f} MB", memory);
-        spdlog::info("Throughput={0:.2f} MB/s", memory / search_time);
-        spdlog::info("PerThreadThroughput={0:.2f} MB/s", memory / search_time / config.num_threads);
+        long num_upper_hops = alg_hnsw->metric_hops;
+        long num_base_hops = alg_hnsw->metric_base_hops;
+        long num_total_hops = num_upper_hops + num_base_hops;
 
-        spdlog::info("QHops={0:.2f}", 1.0 * num_hops / query.shape[0]);
-        spdlog::info("QFeat={0:.2f}", 1.0 * num_feat / query.shape[0]);
-        spdlog::info("QRead={0:.2f} MB", memory / query.shape[0]);
+        long num_upper_dist = alg_hnsw->metric_distance_computations;
+        long num_base_dist = alg_hnsw->metric_base_distance_computations;
+        long num_total_dist = num_upper_dist + num_base_dist;
+
+        float upper_memory = 1.0 * num_upper_dist * config.dim * sizeof(dist_t) / 1e6;
+        float base_memory = 1.0 * num_base_dist * config.dim * sizeof(dist_t) / 1e6;
+        float total_memory = upper_memory + base_memory;
+
+        spdlog::info("UpperHops={}", num_upper_hops);
+        spdlog::info("BaseHops={}", num_base_hops);
+
+        spdlog::info("UpperDist={}", num_upper_dist);
+        spdlog::info("BaseDist={}", num_base_dist);
+        
+        spdlog::info("UpperRead={0:.2f} MB", upper_memory);
+        spdlog::info("TotalRead={0:.2f} MB", base_memory);
+        spdlog::info("Throughput={0:.2f} MB/s", total_memory / search_time);
+
+        spdlog::info("QHops={0:.2f}", 1.0 * num_total_hops / query.shape[0]);
+        spdlog::info("QDist={0:.2f}", 1.0 * num_total_dist / query.shape[0]);
+        spdlog::info("QRead={0:.2f} MB", total_memory / query.shape[0]);
     }
 
 
@@ -151,16 +163,13 @@ void benchmark(HNSWConfig config){
 
 int main(int argc, char *argv[])
 {
-
     HNSWConfig config = get_hnsw_config(argc, argv);
-
     oneapi::tbb::global_control global_limit(oneapi::tbb::global_control::max_allowed_parallelism, config.num_threads);
     if (config.space == "ip") {
-        benchmark<hnswlib::InnerProductSpace>(config);
+        benchmark<hnswlib::InnerProductSpace, float>(config);
     } else if (config.space == "l2") {
-        benchmark<hnswlib::L2Space>(config);
-    } else if (config.space == "cosine") {
-        spdlog::error("Doesn't support cosine distance for now, you can use inner product instead");
-        exit(-1);
+        benchmark<hnswlib::L2Space, float>(config);
+    } else if (config.space == "l2uint8") {
+        benchmark<hnswlib::L2SpaceI, int>(config);
     }
 }

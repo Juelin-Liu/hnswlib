@@ -5,7 +5,7 @@ namespace profiler {
     HNSWConfig get_hnsw_config(int argc, char *argv[]) {
         HNSWConfig config;
         argparse::ArgumentParser program("HNSW profiler");
-        program.add_argument("--space").help("one of l2, ip, or cosine").required();
+        program.add_argument("--space").help("one of l2, ip, or l2uint8").required();
         program.add_argument("--M").help(" maximum number of outgoing connections in the graph").scan<'i', int>().required();
         program.add_argument("--ef_construction").help("priority queue capacity during the index construction").scan<'i', int>().required();
 

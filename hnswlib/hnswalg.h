@@ -65,6 +65,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
     mutable std::atomic<long> metric_distance_computations{0};
     mutable std::atomic<long> metric_hops{0};
 
+    mutable std::atomic<long> metric_base_distance_computations{0};
+    mutable std::atomic<long> metric_base_hops{0};
+
     bool allow_replace_deleted_ = false;  // flag to replace deleted elements (marked as deleted) during insertions
 
     std::mutex deleted_elements_lock;  // lock for deleted_elements
@@ -362,9 +365,9 @@ class HierarchicalNSW : public AlgorithmInterface<dist_t> {
             int *data = (int *) get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
 //                bool cur_node_deleted = isMarkedDeleted(current_node_id);
-            if (collect_metrics) {
-                metric_hops++;
-                metric_distance_computations+=size;
+            if constexpr(collect_metrics) {
+                metric_base_hops++;
+                metric_base_distance_computations+=size;
             }
 
 #ifdef USE_SSE
